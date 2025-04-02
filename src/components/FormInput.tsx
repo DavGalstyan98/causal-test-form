@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Box, Input, MenuItem, MenuList, Stack } from "@mui/material";
 
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ export interface DropdownValues {
 
 const FormInput = () => {
   const { tokens } = useFormulaStore();
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const lastToken = tokens[tokens.length - 1];
   const search =
@@ -74,10 +75,17 @@ const FormInput = () => {
 
       if (index > 0 && newTokens[index - 1]?.type === "tag") {
         newTokens.splice(index - 1, 2);
-
         useFormulaStore.getState().setTokens(newTokens);
 
-        inputRefs.current[index - 2]?.focus(); // Focus the input before the deleted tag
+        setTimeout(() => {
+          const input = inputRefs.current[index - 2];
+          if (input) {
+            input.focus();
+            const length = input.value.length;
+            input.setSelectionRange(length, length);
+          }
+        }, 0);
+
         return;
       }
 
@@ -88,7 +96,17 @@ const FormInput = () => {
     }
   };
 
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  useEffect(() => {
+    const input = inputRefs.current[inputRefs.current?.length - 1];
+    const lastIndex = tokens.length - 1;
+
+    if (
+      tokens?.[lastIndex]?.type === "text" &&
+      tokens[lastIndex].value === ""
+    ) {
+      input?.focus();
+    }
+  }, [tokens]);
 
   return (
     <Stack alignItems="center" spacing="20px" marginTop="200px" overflow="auto">
@@ -103,10 +121,9 @@ const FormInput = () => {
         }}
       >
         {tokens.map((token, index) => (
-          <>
+          <React.Fragment key={`token-${index}`}>
             {token.type === "tag" ? (
               <Box
-                key={`tag-${token.id}-${index}`}
                 sx={{
                   padding: "2px 6px",
                   background: "#EEE",
@@ -121,7 +138,6 @@ const FormInput = () => {
               </Box>
             ) : (
               <Input
-                key={`text-${index}`}
                 value={token.value}
                 inputRef={(el) => (inputRefs.current[index] = el)}
                 onChange={(event) => handleChange(event.target.value, index)}
@@ -145,14 +161,14 @@ const FormInput = () => {
                 }}
               />
             )}
-          </>
+          </React.Fragment>
         ))}
       </Box>
 
       {data ? (
         <Box
           maxHeight="200px"
-          overflow="hidden"
+          overflow="auto"
           border="1px solid #777777"
           borderRadius="10px"
         >
